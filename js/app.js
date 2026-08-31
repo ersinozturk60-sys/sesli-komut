@@ -221,13 +221,29 @@ window.SK = window.SK || {};
     return r;
   }
 
+  /* Seslendirme bittikten sonra bile iOS ses oturumunu "oynatma" kipinde
+     tutuyor; dinlemeye o kiple başlayınca ilk saniyeler boş geliyor — kullanıcı
+     bunu "ikinci komutta beni duymuyor, bağırmam gerekiyor" diye yaşıyor.
+     Sentezi dokunuşun en başında kapatıyoruz ki parmak kalkana kadar geçen
+     sürede ses oturumu mikrofona dönebilsin. */
+  function sesiSustur() {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* yok say */ }
+  }
+
+  /* Safari'de tek bir tanıyıcı örneğini tekrar tekrar kullanmak güvenilir değil;
+     ikinci-üçüncü dinlemede ses zayıf geliyor ya da hiç gelmiyor. Her dinleme
+     için taze örnek kuruyoruz. */
   function mikrofonuAcKapa() {
+    if (dinliyor) {
+      if (taniyici) { try { taniyici.stop(); } catch (e) { /* yok say */ } }
+      return;
+    }
+    sesiSustur();
+    taniyici = taniyiciKur();
     if (!taniyici) return;
-    if (dinliyor) { taniyici.stop(); return; }
-    // iOS'ta konuşma sentezinin çalışması için ilk kullanıcı dokunuşu gerekiyor;
-    // burada boş bir seslendirme ile motoru uyandırıyoruz.
-    try { window.speechSynthesis.resume(); } catch (e) { /* yok say */ }
-    try { taniyici.start(); } catch (e) { durumYaz('Zaten dinliyor.', ''); }
+    // start() dokunuşun kendi içinde çağrılmalı: setTimeout'a alınırsa iOS bunu
+    // kullanıcı hareketi saymayıp izni ya da dinlemeyi düşürebiliyor.
+    try { taniyici.start(); } catch (e) { durumYaz('Bir saniye bekleyip tekrar dene.', ''); }
   }
 
   /* ---------------- Rehber ---------------- */
@@ -379,8 +395,8 @@ window.SK = window.SK || {};
       document.getElementById('sekme-' + s).addEventListener('click', function () { sekmeAc(s); });
     });
 
-    taniyici = taniyiciKur();
-    if (!taniyici) {
+    var sesTanimaVar = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!sesTanimaVar) {
       el.mikrofon.disabled = true;
       durumYaz('Bu tarayıcı ses tanımayı desteklemiyor. Chrome veya Edge kullan — aşağıdan yazarak da deneyebilirsin.', 'hata');
     } else if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
@@ -389,6 +405,10 @@ window.SK = window.SK || {};
       durumYaz('Konuşmak için butona bas', '');
     }
 
+    // Sentezi click'ten önce kapatmak için: parmak değdiği anda sustur, dinlemeyi
+    // click'te başlat. Aradaki kısa süre ses oturumunun mikrofona dönmesine yetiyor.
+    el.mikrofon.addEventListener('pointerdown', sesiSustur);
+    el.mikrofon.addEventListener('touchstart', sesiSustur);
     el.mikrofon.addEventListener('click', mikrofonuAcKapa);
     el.kayitKopyala.addEventListener('click', kayitKopyala);
 
@@ -403,7 +423,9 @@ window.SK = window.SK || {};
       }
     });
 
-    Array.prototype.forEach.call(document.querySelectorAll('.ornek'), function (d) {
+    // Yalnızca Örnek komutlar kutusundakiler; Kayıtlar'daki kopyala düğmesi de
+    // aynı görünümü kullandığı için seçici o kutuyla sınırlandırıldı.
+    Array.prototype.forEach.call(document.querySelectorAll('.ornekler .ornek'), function (d) {
       d.addEventListener('click', function () { komutIsle(d.textContent); });
     });
 
