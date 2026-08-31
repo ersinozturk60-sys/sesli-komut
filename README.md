@@ -69,8 +69,8 @@ komutların eklenmesi gerektiğini gösteren asıl kaynak.
 ## Yol haritası
 
 1. **Bitti** — Komut motoru iskeleti, 4 çalışan komut, bilgisayarda test
-2. **Devam ediyor** — Telefona taşıma: GitHub Pages seçildi, dosyalar hazır,
-   yükleme ve gerçek cihaz testi kaldı → `YAYINLAMA.md`
+2. **Bitti** — Telefona taşıma: GitHub Pages'te yayında, iPhone'da ana ekrana
+   eklenip test edildi, komutların hepsi gerçek cihazda çalışıyor → `YAYINLAMA.md`
 3. Serbest konuşma anlama: Claude API ile niyet çözümleme (küçük bir sunucu gerekir,
    API anahtarı telefonda açıkta duramaz) — bilgi soruları da burada devreye girer
 4. Derin telefon kontrolü: Android'de native uygulama veya Tasker/HTTP köprüsü;
