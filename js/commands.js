@@ -235,7 +235,9 @@ window.SK = window.SK || {};
     ornekler: ['10 gün sonra doktor randevum var, bir gün önceden hatırlat'],
     eslesir: function (metin) {
       var t = nlp.normalize(metin);
-      var niyet = /hatırlat|hatirlat|randevu|toplantı|toplanti|doğum günü|dogum gunu|unutma|not et/.test(t);
+      // "alarm kur" da buraya düşüyor: web uygulaması kendi başına alarm kuramaz,
+      // ama takvim etkinliği aynı işi görüyor — uygulama kapalıyken de çalıyor.
+      var niyet = /hatırlat|hatirlat|randevu|toplantı|toplanti|doğum günü|dogum gunu|unutma|not et|alarm|uyandır|uyandir/.test(t);
       if (!niyet) return null;
       var tarih = nlp.tarihCoz(metin);
       if (!tarih) return null;
@@ -259,6 +261,7 @@ window.SK = window.SK || {};
       var baslik = nlp.kelimeleriAt(ham, [
         'gün', 'gun', 'hafta', 'sonra', 'saat', 'dakika', 'önce', 'once',
         'hatırlat', 'hatirlat', 'lütfen', 'lutfen', 'yarın', 'yarin',
+        'kurmanı', 'kurmani', 'istiyorum', 'uyandır', 'uyandir',
         'bugün', 'bugun', 'haftaya', 'sabah', 'akşam', 'aksam', 'öğle', 'ogle',
         'öğlen', 'oglen', 'gece', 'ikindi', 'unutma',
         'pazartesi', 'çarşamba', 'carsamba', 'perşembe', 'persembe',
@@ -316,7 +319,78 @@ window.SK = window.SK || {};
     }
   });
 
-  /* 6) Bilgi soruları — henüz cevaplayamıyoruz (Aşama 3: yapay zeka bağlantısı).
+  /* 6) Tarayıcının yapamayacağı istekler.
+        Kayıtlarda "el fenerini aç", "telefon rehberini buraya indir" gibi istekler
+        sessizce "anlamadım"a düşüyordu. Anlamadığımız için değil, tarayıcının
+        telefonun donanımına erişememesi yüzünden olmuyor — bunu açıkça söylemek
+        kullanıcının aynı komutu tekrar tekrar denemesini önlüyor. */
+  var YAPILAMAZ = [
+    {
+      desen: /el feneri|el fener|fener[iı]? a[cç]|fla[sş] a[cç]/,
+      baslik: 'El fenerini açamıyorum',
+      aciklama: 'Tarayıcı telefonun flaşına erişemiyor — bu iOS ve Android\'de aynı. ' +
+        'Kilit ekranını yukarı kaydırıp Denetim Merkezi\'nden açabilirsin. ' +
+        'Uygulamanın bunu yapabilmesi için planın 4. aşaması gerekiyor.',
+      soyle: 'El fenerini açamıyorum.'
+    },
+    {
+      // Araya kelime girebiliyor: "rehberini buraya indir"
+      desen: /(rehber|ki[sş]iler)\S*(\s+\S+){0,3}\s+(indir|aktar|oku|[cç]ek|al)\S*/,
+      baslik: 'Telefonun rehberini okuyamıyorum',
+      aciklama: 'Bir web uygulaması telefonun kendi rehberine erişemez; bu bir izin ' +
+        'meselesi değil, tarayıcının sınırı. Aramak istediğin kişileri Rehber ' +
+        'sekmesinden bir kez tanıtman yeterli, sonra hep hatırlar.',
+      soyle: 'Telefonun rehberini okuyamıyorum.',
+      rehbereGit: true
+    },
+    {
+      desen: /wifi|wi-fi|bluetooth|u[cç]ak modu|mobil veri/,
+      baslik: 'Telefon ayarlarını değiştiremiyorum',
+      aciklama: 'Wi-Fi, Bluetooth ve benzeri ayarlar tarayıcıya kapalı. ' +
+        'Denetim Merkezi\'nden yapman gerekiyor.',
+      soyle: 'Telefon ayarlarını değiştiremiyorum.'
+    },
+    {
+      desen: /ekran g[oö]r[uü]nt[uü]s[uü]|sesi (a[cç]|k[iı]s|art[iı]r|azalt)|parlakl[iı][gğ][iı]/,
+      baslik: 'Bunu telefonun kendisi yapabilir, ben yapamam',
+      aciklama: 'Ekran görüntüsü, ses ve parlaklık tarayıcının erişebildiği şeyler değil.',
+      soyle: 'Bunu yapamıyorum.'
+    }
+  ];
+
+  KOMUTLAR.push({
+    id: 'yapilamaz',
+    ad: 'Tarayıcının yapamadığı istek',
+    ornekler: ['el fenerini aç', 'telefon rehberini indir'],
+    eslesir: function (metin) {
+      var t = nlp.normalize(metin);
+      for (var i = 0; i < YAPILAMAZ.length; i++) {
+        if (YAPILAMAZ[i].desen.test(t)) return { kayit: YAPILAMAZ[i] };
+      }
+      return null;
+    },
+    calistir: function (slot, ctx) {
+      var k = slot.kayit;
+      var kart = {
+        baslik: k.baslik,
+        uyari: true,
+        aciklama: k.aciklama,
+        soyle: k.soyle,
+        aksiyonlar: []
+      };
+      if (k.rehbereGit) {
+        kart.aksiyonlar.push({
+          etiket: '➕ Rehbere kişi ekle',
+          tip: 'islev',
+          birincil: true,
+          islev: function () { ctx.rehberEkleFormu(''); }
+        });
+      }
+      return kart;
+    }
+  });
+
+  /* 7) Bilgi soruları — henüz cevaplayamıyoruz (Aşama 3: yapay zeka bağlantısı).
         Şimdilik dürüstçe söylüyor ve geçici olarak web aramasına yönlendiriyor. */
   KOMUTLAR.push({
     id: 'bilgi',
@@ -329,8 +403,9 @@ window.SK = window.SK || {};
       }
       return null;
     },
-    calistir: function (slot, ctx) {
-      ctx.istekKaydet(slot.soru, 'bilgi');
+    calistir: function (slot) {
+      // Kaydı motor zaten tutuyor (tür: bilgi). Burada ayrıca istekKaydet çağırmak
+      // aynı soruyu Kayıtlar'a ikinci kez, "anlaşılmadı" diye düşürüyordu.
       return {
         baslik: 'Bunu henüz kendim cevaplayamıyorum',
         uyari: true,

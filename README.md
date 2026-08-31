@@ -46,7 +46,10 @@ arayüz ve ses katmanı değişmez.
 - `youtube uygulamamdan türk sanat müziği şarkıları aç`
 - `10 gün sonra doktor randevum var, bana bir gün önceden hatırlat`
 - `şu ilacı 1 hafta sabah ve akşamları 12 saat arayla içmem lazım hatırlat`
+- `yarın saat 10:00'a alarm kur` — alarm istekleri takvim hatırlatmasına düşer
 - Bilgi soruları (maç sonucu, tarihçe vb.) tanınır ama henüz cevaplanmaz — 3. aşama
+- `el fenerini aç`, `telefon rehberini indir` gibi tarayıcının yapamayacağı
+  istekler sessizce "anlamadım"a düşmez; nedenini açıklayan bir kart gösterir
 
 ## Tasarım kararları
 

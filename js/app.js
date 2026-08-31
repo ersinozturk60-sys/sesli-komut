@@ -176,26 +176,36 @@ window.SK = window.SK || {};
     r.continuous = false;
     r.maxAlternatives = 3;
 
+    var toplanan = '';   // kesinleşmiş parçalar
+    var sonAra = '';     // henüz kesinleşmemiş son metin
+
     r.onstart = function () {
       dinliyor = true;
+      toplanan = '';
+      sonAra = '';
       el.mikrofon.classList.add('dinliyor');
       durumYaz('Dinliyorum…', 'aktif');
       el.duyulan.textContent = '';
       el.duyulan.hidden = true;
     };
 
+    /* Cümleyi ilk kesinleşen parçada işlemiyoruz: konuşmanın ortasında kısa bir
+       duraklama olduğunda tanıyıcı parçayı erkenden kesinleştiriyor ve komut
+       "youtube uygulamamdan" gibi yarım geliyordu. Parçaları biriktirip
+       dinleme bittiğinde tek seferde işliyoruz. */
     r.onresult = function (olay) {
       var ara = '';
-      var kesin = '';
       for (var i = olay.resultIndex; i < olay.results.length; i++) {
         var p = olay.results[i][0].transcript;
-        if (olay.results[i].isFinal) kesin += p; else ara += p;
+        if (olay.results[i].isFinal) toplanan += (toplanan ? ' ' : '') + p.trim();
+        else ara += p;
       }
-      if (ara) {
+      if (ara) sonAra = ara;
+      var gosterilecek = (toplanan + ' ' + ara).trim();
+      if (gosterilecek) {
         el.duyulan.hidden = false;
-        el.duyulan.textContent = ara;
+        el.duyulan.textContent = gosterilecek;
       }
-      if (kesin) komutIsle(kesin.trim());
     };
 
     r.onerror = function (olay) {
@@ -216,6 +226,12 @@ window.SK = window.SK || {};
       dinliyor = false;
       el.mikrofon.classList.remove('dinliyor');
       if (el.durum.classList.contains('aktif')) durumYaz('Konuşmak için butona bas', '');
+
+      // Hiç kesinleşen parça gelmediyse son ara metni kullan: dinleme erken
+      // kapandığında kullanıcı elinde hiçbir şey olmadan kalmasın. Zaten hiçbir
+      // komut sorulmadan çalışmıyor, yanlış anlaşılmışsa karttan görülüyor.
+      var metin = (toplanan || sonAra || '').trim();
+      if (metin) komutIsle(metin);
     };
 
     return r;

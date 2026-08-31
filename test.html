@@ -175,8 +175,34 @@
       return null;
     });
 
+    // g) Gerçek kullanımdan gelen boşluklar (31 Ağustos 2026 kayıtları)
+    dene('alarm kurma hatırlatmaya düşmeli',
+         'yarın saat 10:00\'a alarm kurmanı istiyorum', function (k) {
+      if (!k || k.komutId !== 'hatirlatma') return 'hatirlatma komutu beklendi';
+      if (satir(k, 'Saat') !== '10:00') return 'saat yanlis: ' + satir(k, 'Saat');
+      return null;
+    });
+
+    dene('el feneri: dürüstçe yapamam demeli', 'el fenerini aç', function (k) {
+      if (!k || k.komutId !== 'yapilamaz') return 'yapilamaz komutu beklendi';
+      if (!k.uyari) return 'uyari karti beklendi';
+      return null;
+    });
+
+    dene('rehber indirme: açıklama + rehber butonu',
+         'telefon rehberini buraya indir', function (k) {
+      if (!k || k.komutId !== 'yapilamaz') return 'yapilamaz komutu beklendi';
+      if (!k.aksiyonlar || !k.aksiyonlar.length) return 'rehbere yonlendiren buton olmali';
+      return null;
+    });
+
     // Tanınmayan
     dene('tanınmayan komut', 'çamaşır makinesini çalıştır', function (k) {
+      if (k) return 'eslesme olmamaliydi, gelen: ' + k.komutId;
+      return null;
+    });
+
+    dene('sohbet henüz tanınmıyor (aşama 3)', 'beni seviyor musun', function (k) {
       if (k) return 'eslesme olmamaliydi, gelen: ' + k.komutId;
       return null;
     });
