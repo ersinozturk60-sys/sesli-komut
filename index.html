@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1216">
+  <title>Sesli Komut</title>
+
+  <!-- Ana ekrana eklendiğinde tarayıcı çubuğu olmadan açılsın diye.
+       Android manifest'i okur; iOS hâlâ kendi apple-* etiketlerini istiyor. -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="simge/simge-192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="simge/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sesli Komut">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="ust">
+    <h1>Sesli Komut</h1>
+    <span class="rozet" id="platform">—</span>
+  </header>
+
+  <nav class="sekmeler">
+    <button type="button" id="sekme-komut" class="etkin">Komut</button>
+    <button type="button" id="sekme-rehber">Rehber</button>
+    <button type="button" id="sekme-kayit">Kayıtlar</button>
+  </nav>
+
+  <main>
+
+    <!-- KOMUT -->
+    <section id="panel-komut">
+      <div class="mikrofon-alani">
+        <button type="button" id="mikrofon" aria-label="Konuşmaya başla">
+          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </button>
+        <p class="durum" id="durum">Hazırlanıyor…</p>
+        <p class="duyulan" id="duyulan" hidden></p>
+      </div>
+
+      <div class="kart" id="kart" hidden></div>
+
+      <div class="yazi-alani">
+        <label for="yazi-giris">Veya yazarak dene</label>
+        <div class="yazi-satir">
+          <input type="text" id="yazi-giris" placeholder="oğlumu ara" autocomplete="off">
+          <button type="button" id="yazi-gonder">Çalıştır</button>
+        </div>
+      </div>
+
+      <div class="ornekler">
+        <p class="baslik-kucuk">Örnek komutlar</p>
+        <button type="button" class="ornek">oğlumu ara</button>
+        <button type="button" class="ornek">youtube uygulamamdan türk sanat müziği şarkıları aç</button>
+        <button type="button" class="ornek">10 gün sonra doktor randevum var, bana bir gün önceden hatırlat</button>
+        <button type="button" class="ornek">şu ilacı 1 hafta sabah ve akşamları 12 saat arayla içmem lazım hatırlat</button>
+        <button type="button" class="ornek">fenerbahçe maçının sonucunu söyle</button>
+      </div>
+    </section>
+
+    <!-- REHBER -->
+    <section id="panel-rehber" hidden>
+      <p class="aciklama">
+        Telefonun kendi rehberini bir web uygulaması okuyamaz — bu iOS ve Android'de aynı.
+        Bu yüzden aramak istediğin kişileri buraya bir kez tanıtıyoruz.
+        <strong>Günlük konuşmada nasıl diyorsan öyle yaz</strong> ("oğlum", "annem", "eşim"),
+        çünkü komutta o adı söyleyeceksin.
+      </p>
+
+      <div class="form">
+        <input type="text" id="rehber-isim" placeholder="oğlum" autocomplete="off">
+        <input type="tel" id="rehber-numara" placeholder="05xx xxx xx xx" autocomplete="off">
+        <button type="button" id="rehber-kaydet">Kaydet</button>
+      </div>
+
+      <div id="rehber-liste"></div>
+    </section>
+
+    <!-- KAYITLAR -->
+    <section id="panel-kayit" hidden>
+      <p class="aciklama">
+        Söylediğin her komut buraya düşüyor. <strong>Anlaşılmayanlar</strong> kırmızı görünür —
+        sıradaki sürümde hangi komutları eklememiz gerektiğini bu liste söyleyecek.
+      </p>
+      <p class="ozet" id="kayit-ozet"></p>
+      <button type="button" class="ornek" id="kayit-kopyala">Kayıtları kopyala</button>
+      <div id="kayit-liste"></div>
+    </section>
+
+  </main>
+
+  <script src="js/nlp.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/commands.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

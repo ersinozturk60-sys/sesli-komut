@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Komut motoru testleri</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .t { background:#171c22; border:1px solid #2b333d; border-left:3px solid #3ecf8e;
+         border-radius:12px; padding:12px 14px; margin-bottom:10px; font-size:14px; }
+    .t.kotu { border-left-color:#ef5f5f; }
+    .t b { display:block; margin-bottom:6px; }
+    .t pre { margin:6px 0 0; white-space:pre-wrap; color:#93a1b0; font-size:13px; }
+    #ozet { font-size:16px; font-weight:600; padding:14px; border-radius:12px;
+            background:#171c22; border:1px solid #2b333d; margin-bottom:16px; }
+  </style>
+</head>
+<body>
+  <header class="ust"><h1>Komut motoru testleri</h1></header>
+  <div id="ozet">çalışıyor…</div>
+  <div id="sonuc"></div>
+
+  <script src="js/nlp.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/commands.js"></script>
+  <script>
+  (function () {
+    // Sahte bağlam: gerçek rehber yerine sabit bir liste
+    var eklenenIsim = null;
+    var kaydedilenIstek = [];
+    var sahteRehber = [
+      { isim: 'oğlum', numara: '05321112233' },
+      { isim: 'annem', numara: '05339998877' }
+    ];
+    var ctx = {
+      rehberBul: function (isim) {
+        for (var i = 0; i < sahteRehber.length; i++) {
+          if (SK.nlp.isimEslesir(isim, sahteRehber[i].isim)) return sahteRehber[i];
+        }
+        return null;
+      },
+      rehberEkleFormu: function (isim) { eklenenIsim = isim; },
+      istekKaydet: function (m, t) { kaydedilenIstek.push([m, t]); }
+    };
+
+    var gecti = 0, kaldi = 0;
+    var kutu = document.getElementById('sonuc');
+
+    function dene(baslik, metin, kontrol) {
+      var kart = SK.komutlar.calistir(metin, ctx);
+      var hata = null;
+      try {
+        hata = kontrol(kart);
+      } catch (e) {
+        hata = 'istisna: ' + e.message;
+      }
+      var d = document.createElement('div');
+      d.className = 't' + (hata ? ' kotu' : '');
+      var b = document.createElement('b');
+      b.textContent = (hata ? 'X ' : 'OK ') + baslik;
+      d.appendChild(b);
+      var pre = document.createElement('pre');
+      var ozet = '"' + metin + '"\n';
+      if (kart) {
+        ozet += '-> komut: ' + kart.komutId + ' | baslik: ' + kart.baslik + '\n';
+        (kart.satirlar || []).forEach(function (s) { ozet += '   ' + s.etiket + ': ' + s.deger + '\n'; });
+      } else {
+        ozet += '-> eslesme yok\n';
+      }
+      if (hata) ozet += 'BEKLENEN SAGLANMADI: ' + hata;
+      pre.textContent = ozet;
+      d.appendChild(pre);
+      kutu.appendChild(d);
+      if (hata) kaldi++; else gecti++;
+    }
+
+    function satir(kart, etiket) {
+      var s = (kart.satirlar || []).filter(function (x) { return x.etiket === etiket; })[0];
+      return s ? s.deger : null;
+    }
+
+    var bugun = SK.nlp.gunBasi(new Date());
+    var on = SK.nlp.gunEkle(bugun, 10);
+
+    // a) Kişi arama
+    dene('oğlumu ara', 'oğlumu ara', function (k) {
+      if (!k || k.komutId !== 'ara') return 'ara komutu beklendi';
+      if (satir(k, 'Numara') !== '05321112233') return 'numara yanlis';
+      return null;
+    });
+
+    dene('annemi ara (ek düşürme)', 'annemi ara', function (k) {
+      if (!k || k.komutId !== 'ara') return 'ara komutu beklendi';
+      if (satir(k, 'Numara') !== '05339998877') return 'numara yanlis';
+      return null;
+    });
+
+    dene('rehberde olmayan kişi', 'kardeşimi ara', function (k) {
+      if (!k || k.komutId !== 'ara') return 'ara komutu beklendi';
+      if (!k.uyari) return 'uyari karti beklendi';
+      return null;
+    });
+
+    dene('doğrudan numara', '0532 111 22 33 ara', function (k) {
+      if (!k || k.komutId !== 'ara') return 'ara komutu beklendi';
+      if (satir(k, 'Numara') !== '05321112233') return 'numara temizlenmedi';
+      return null;
+    });
+
+    // d) YouTube
+    dene('youtube araması', 'youtube uygulamamdan türk sanat müziği şarkıları aç', function (k) {
+      if (!k || k.komutId !== 'youtube') return 'youtube komutu beklendi';
+      var q = satir(k, 'Arama');
+      if (q !== 'türk sanat müziği şarkıları') return 'sorgu yanlis cikti: "' + q + '"';
+      return null;
+    });
+
+    // e) Tek seferlik hatırlatma
+    dene('10 gün sonra randevu, 1 gün önce uyarı',
+         '10 gün sonra doktor randevum var, bana bir gün önceden hatırlat', function (k) {
+      if (!k || k.komutId !== 'hatirlatma') return 'hatirlatma komutu beklendi';
+      if (satir(k, 'Tarih') !== SK.nlp.tarihYaz(on)) return 'tarih 10 gun sonrasi olmali';
+      if (satir(k, 'Uyarı') !== '1 gün önce') return 'uyari payi 1 gun olmali (10 gun degil)';
+      if (k.baslik.indexOf('randevu') === -1) return 'baslik randevu icermeli: ' + k.baslik;
+      return null;
+    });
+
+    dene('saatli hatırlatma', 'yarın saat 14:30 toplantım var, yarım saat önce hatırlat', function (k) {
+      if (!k || k.komutId !== 'hatirlatma') return 'hatirlatma komutu beklendi';
+      if (satir(k, 'Saat') !== '14:30') return 'saat yanlis';
+      if (satir(k, 'Uyarı') !== '30 dakika önce') return 'uyari payi yanlis';
+      if (k.baslik !== 'Toplantım') return 'baslik temiz olmali, gelen: "' + k.baslik + '"';
+      return null;
+    });
+
+    dene('akşam saati çevrimi', 'yarın akşam 8 de babamı arayacağım hatırlat', function (k) {
+      if (!k || k.komutId !== 'hatirlatma') return 'hatirlatma komutu beklendi';
+      if (satir(k, 'Saat') !== '20:00') return 'aksam 8 -> 20:00 olmali, gelen: ' + satir(k, 'Saat');
+      if (k.baslik !== 'Babamı arayacağım') return 'baslik: "' + k.baslik + '"';
+      return null;
+    });
+
+    dene('isim ve "doğum günü" silinmemeli', '3 gün sonra ayşenin doğum günü var hatırlat', function (k) {
+      if (!k || k.komutId !== 'hatirlatma') return 'hatirlatma komutu beklendi';
+      if (k.baslik !== 'Ayşenin doğum günü') return 'baslik: "' + k.baslik + '"';
+      return null;
+    });
+
+    // f) İlaç / tekrarlı
+    dene('ilaç: 1 hafta, 12 saat arayla',
+         'şu ilacı 1 hafta sabah ve akşamları 12 saat arayla içmem lazım bana hatırlat', function (k) {
+      if (!k || k.komutId !== 'ilac') return 'ilac komutu beklendi';
+      if (satir(k, 'Süre') !== '7 gün') return 'sure 7 gun olmali';
+      if (satir(k, 'Saatler') !== '09:00 — 21:00') return 'saatler yanlis: ' + satir(k, 'Saatler');
+      if (satir(k, 'Toplam') !== '14 hatırlatma') return 'toplam yanlis';
+      return null;
+    });
+
+    dene('ilaç: günde 3 kez, 10 gün', 'parol ilacını 10 gün günde 3 kez hatırlat', function (k) {
+      if (!k || k.komutId !== 'ilac') return 'ilac komutu beklendi';
+      if (satir(k, 'Süre') !== '10 gün') return 'sure yanlis: ' + satir(k, 'Süre');
+      if (k.baslik.toLowerCase().indexOf('parol') === -1) return 'ilac adi yakalanmali: ' + k.baslik;
+      // Gece yarısı dozu olmamalı: aralık verilmediyse dozlar gündüze yayılmalı
+      if (satir(k, 'Saatler') !== '08:00 — 14:00 — 20:00') return 'saatler gunduze yayilmali, gelen: ' + satir(k, 'Saatler');
+      return null;
+    });
+
+    // b, c) Bilgi soruları — henüz cevaplanmıyor ama tanınmalı
+    dene('maç sonucu (bilgi)', 'fenerbahçe maçının sonucunu söyle', function (k) {
+      if (!k || k.komutId !== 'bilgi') return 'bilgi komutu beklendi';
+      return null;
+    });
+
+    dene('tarih anlatımı (bilgi)', 'kastamonu evlerinin tarihini detaylı anlat', function (k) {
+      if (!k || k.komutId !== 'bilgi') return 'bilgi komutu beklendi';
+      return null;
+    });
+
+    // Tanınmayan
+    dene('tanınmayan komut', 'çamaşır makinesini çalıştır', function (k) {
+      if (k) return 'eslesme olmamaliydi, gelen: ' + k.komutId;
+      return null;
+    });
+
+    // --- Takvim dosyası (.ics) ---
+    // Hatırlatmalar telefona bu dosyayla ulaşıyor; biçimi bozuksa Takvim reddeder.
+    function icsDene(baslik, etkinlikler, kontrol) {
+      var ics = SK.actions.icsUret(etkinlikler);
+      var hata = null;
+      try { hata = kontrol(ics); } catch (e) { hata = 'istisna: ' + e.message; }
+      var d = document.createElement('div');
+      d.className = 't' + (hata ? ' kotu' : '');
+      var b = document.createElement('b');
+      b.textContent = (hata ? 'X ' : 'OK ') + baslik;
+      d.appendChild(b);
+      var pre = document.createElement('pre');
+      pre.textContent = (hata ? 'BEKLENEN SAGLANMADI: ' + hata + '\n\n' : '') + ics;
+      d.appendChild(pre);
+      kutu.appendChild(d);
+      if (hata) kaldi++; else gecti++;
+    }
+
+    icsDene('ics: tekrarlı ilaç etkinliği', [
+      { baslik: 'İlaç saati', aciklama: '7 gün', baslangic: new Date(2026, 8, 1, 9, 0, 0),
+        dakika: 10, uyariDakika: 0, tekrarGun: 7 },
+      { baslik: 'İlaç saati', aciklama: '7 gün', baslangic: new Date(2026, 8, 1, 21, 0, 0),
+        dakika: 10, uyariDakika: 0, tekrarGun: 7 }
+    ], function (ics) {
+      if (ics.indexOf('BEGIN:VCALENDAR') !== 0) return 'VCALENDAR ile baslamali';
+      if (ics.indexOf('END:VCALENDAR') === -1) return 'VCALENDAR kapanmamis';
+      if ((ics.match(/BEGIN:VEVENT/g) || []).length !== 2) return '2 etkinlik olmali';
+      if ((ics.match(/END:VEVENT/g) || []).length !== 2) return 'etkinlikler kapanmamis';
+      if ((ics.match(/RRULE:FREQ=DAILY;COUNT=7/g) || []).length !== 2) return 'RRULE eksik';
+      if ((ics.match(/BEGIN:VALARM/g) || []).length !== 2) return 'alarm eksik';
+      if (!/DTSTART:\d{8}T\d{6}Z/.test(ics)) return 'DTSTART bicimi bozuk';
+      if (ics.indexOf('\r\n') === -1) return 'satir sonlari CRLF olmali';
+      return null;
+    });
+
+    icsDene('ics: tek randevu, 1 gün önce alarm', [
+      { baslik: 'Doktor randevum', aciklama: 'test', baslangic: new Date(2026, 8, 9, 9, 0, 0),
+        dakika: 60, uyariDakika: 1440 }
+    ], function (ics) {
+      if ((ics.match(/BEGIN:VEVENT/g) || []).length !== 1) return '1 etkinlik olmali';
+      if (ics.indexOf('TRIGGER:-PT1440M') === -1) return '1 gun onceki alarm eksik';
+      if (ics.indexOf('RRULE') !== -1) return 'tek seferlik etkinlikte RRULE olmamali';
+      if (ics.indexOf('SUMMARY:Doktor randevum') === -1) return 'baslik eksik';
+      return null;
+    });
+
+    icsDene('ics: özel karakter kaçışı', [
+      { baslik: 'Test; virgül, ters\\eğik', aciklama: 'a\nb', baslangic: new Date(2026, 8, 9, 9, 0, 0),
+        dakika: 30, uyariDakika: 0 }
+    ], function (ics) {
+      if (ics.indexOf('SUMMARY:Test\\; virgül\\, ters\\\\eğik') === -1) return 'kacis yapilmamis';
+      if (ics.indexOf('DESCRIPTION:a\\nb') === -1) return 'satir sonu kacisi yapilmamis';
+      return null;
+    });
+
+    var ozet = document.getElementById('ozet');
+    ozet.textContent = gecti + ' gecti, ' + kaldi + ' kaldi';
+    ozet.style.color = kaldi ? '#ef5f5f' : '#3ecf8e';
+    document.title = 'SONUC: ' + gecti + ' gecti, ' + kaldi + ' kaldi';
+  })();
+  </script>
+</body>
+</html>
